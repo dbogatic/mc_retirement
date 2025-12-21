@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/Language-Python-green)
 ![Monte Carlo](https://img.shields.io/badge/Model-Monte--Carlo-orange)
 
-The **Retirement Monte Carlo Engine** is a high-fidelity planning tool designed to stress-test retirement portfolios against historical market episodes. Unlike basic calculators, it uses a **Stationary Block Bootstrap** to preserve the reality of market drawdowns, inflation spikes, and recovery periods observed in historical data.
+The **Retirement Monte Carlo Engine** is a financial planning tool designed to stress-test retirement portfolios against historical market episodes. Unlike basic calculators, it uses a **Stationary Block Bootstrap** to preserve the reality of market drawdowns, inflation spikes, and recovery periods observed in historical data.
 
 ---
 
