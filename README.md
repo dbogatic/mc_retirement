@@ -1,164 +1,74 @@
-# Retirement Monte Carlo Simulator  
+# 📊 Retirement Monte Carlo Engine
+### *Monthly, Time-Ordered Cash-Flow Simulation*
 
-## Disclaimer  
-This tool is provided for **educational purposes only**.  
-It does **not** constitute financial, investment, or tax advice.  
-Users should exercise discretion in interpreting results and understand that errors or inaccuracies may exist.  
-The methodology is **illustrative** and should not be relied upon for making personal financial decisions without consulting a qualified professional.  
+![Retirement Planning](https://img.shields.io/badge/Planning-Stress--Test-blue)
+![Python](https://img.shields.io/badge/Language-Python-green)
+![Monte Carlo](https://img.shields.io/badge/Model-Monte--Carlo-orange)
 
-**Note:** Portions of this code and documentation were developed with the assistance of **ChatGPT**.  
-
----
-
-## 1. Key Inputs  
-
-### Portfolio & Allocation  
-- **Initial account balances:**  
-  - Taxable  
-  - Tax-deferred (two owners, A & B)  
-  - Roth  
-
-- **Asset allocation:**  
-  - 60% equities  
-  - 30% bonds  
-  - 10% cash (**cash is modeled with a fixed 1% annual return**)  
-
-### Taxes  
-- Ordinary income tax rate: user-defined  
-- Capital gains tax rate: user-defined  
-- Taxable basis fraction: defines how much of the taxable account is treated as cost basis  
-
-### Income  
-- **Social Security (SS):**  
-  - Each spouse has start age, initial amount, and COLA  
-
-- **Pensions:**  
-  - Each pension has start age, annual amount, COLA, and survivor benefit percent  
-
-### Spending  
-- Initial annual expense (user-specified)  
-- Spending rule (fixed, % of portfolio, or guardrails)  
-- Survivor adjustment (expense reduced to a fraction if one spouse dies)  
-
-### Mortality  
-- **Stochastic:** based on SSA mortality table (up to age 100)  
-- **Deterministic:** fixed life expectancy if mortality is disabled  
+The **Retirement Monte Carlo Engine** is a high-fidelity planning tool designed to stress-test retirement portfolios against historical market episodes. Unlike basic calculators, it uses a **Stationary Block Bootstrap** to preserve the reality of market drawdowns, inflation spikes, and recovery periods observed in historical data.
 
 ---
 
-## 2. Regime-Switching Inflation  
-
-### Regime definition  
-Inflation regimes are classified by monthly inflation rate:  
-- Low: < 3% annualized  
-- Mid: 3–5%  
-- High: ≥ 5%  
-
-### Transition dynamics  
-- Regimes evolve using a Markov transition matrix.  
-- Diagonal entries tuned for persistence.  
-- Example: if currently in “low” regime, there is an 85% chance of remaining in “low” next year.  
-
-### Inflation sampling  
-- Within a regime, historical inflation observations are pooled.  
-- A half-life weighting is applied, giving more weight to recent data.  
-- Each year’s inflation is drawn randomly from this weighted pool.  
+## ⚖️ Disclaimer & Responsibility
+**This notebook is for education and planning illustration only.** * **No Advice:** This is not investment, tax, or legal advice and is not a tax-filing model. 
+* **User Responsibility:** This software is provided "as-is." The user assumes all risk and responsibility for the use of this engine, including any financial decisions or interpretations of the output. 
+* **No Liability:** The author/developer retains no responsibility for errors, omissions, or inaccuracies within the model or for any financial losses resulting from its use. Outputs are conditional on assumptions and represent scenario distributions, not forecasts.
 
 ---
 
-## 3. Return Modeling  
-
-### Data source  
-- Historical monthly Shiller data (equities, long-term government bonds, inflation).  
-
-### Weighted statistics  
-- For each regime:  
-  - Compute weighted average returns and covariance matrix of stock/bond returns.  
-  - Apply exponential half-life weighting so recent history matters more.  
-- For unconditional case (no regimes):  
-  - Same weighting applied to the full dataset.  
-
-### Annualization  
-- Means: multiplied by 12  
-- Covariance: multiplied by 12  
-
-### Distributional assumptions  
-- **Normal:** multivariate normal with weighted mean/covariance.  
-- **Student-t:** fat-tailed returns simulated via multivariate-t, with effective df set by `stock_df` and `bond_df`.  
-
-### Correlation option  
-- Use regime-specific correlations, or override with unconditional/global correlation.  
+## 🚀 Key Capabilities
+* **Historical Realism:** Uses Shiller `ie_data` to construct monthly total returns for stocks and bonds alongside CPI inflation.
+* **Sophisticated Cash-Flows:** Models a strict withdrawal waterfall: **Taxable → Tax-Deferred → Roth**.
+* **Adaptive Spending:** Supports "Guardrail" logic to simulate behavioral spending adjustments based on portfolio withdrawal rates.
+* **Longevity Modeling:** Features stochastic mortality sampling using annual $q_x$ hazards for individuals and couples.
+* **Optimization Suite:** Includes solvers for Maximum Safe Spending and two-stage Guardrail parameter optimization.
 
 ---
 
-## 4. Simulation Mechanics  
+## 📉 Asset & Account Structure
+The model manages four account "wrappers," each containing three "sleeves" (Stock/Bond/Cash).
 
-Each simulation path proceeds year by year:  
-
-1. **Mortality check**  
-   - If a spouse reaches death age, adjust expenses and survivor benefits.  
-
-2. **Income realization**  
-   - Add Social Security and pensions (with COLA, survivor rules).  
-
-3. **Expenses net of income**  
-   - Remaining expenses must be funded via withdrawals.  
-
-4. **Withdrawal sequence**  
-   - RMDs: forced withdrawals from tax-deferred once RMD age reached.  
-   - Taxable account: withdrawn first (basis vs gains taxed proportionally).  
-   - Tax-deferred: withdrawn next, taxed at ordinary rate.  
-   - Roth: last, tax-free.  
-
-5. **Asset returns applied**  
-   - Stock/bond returns drawn based on regime & chosen distribution.  
-   - Cash earns fixed 1% return.  
-   - Returns applied multiplicatively to all account balances.  
-
-6. **Expense update**  
-   - Next year’s expense updated per spending rule (fixed COLA, % portfolio, or guardrails).  
-
-7. **Portfolio tracked**  
-   - Portfolio value recorded each year.  
-   - Simulation stops if portfolio depleted.  
+| Wrapper | Liquidation Order | Tax Treatment |
+| :--- | :---: | :--- |
+| **Taxable** | 1st | Capital Gains (Average Basis) + Monthly Leakage Proxy |
+| **Tax-Deferred (A/B)** | 2nd | Ordinary Income (Includes RMD Logic) |
+| **Roth** | 3rd | Tax-Free |
 
 ---
 
-## 5. Spending Rules  
+## 🧬 Advanced Features
 
-- **Fixed:** expense inflated by actual inflation each year.  
-- **Percent of portfolio:** expense set as fixed % of portfolio value.  
-- **Guardrails:** expense adjusted up/down if withdrawal rate moves outside guardrail thresholds.  
+### 🛡️ Guardrail Spending Policy
+Moves beyond "Constant Real" spending by implementing a behavioral feedback loop:
+* **If Withdrawal Rate > Upper Guardrail:** Spending is cut by a fixed factor to preserve capital.
+* **If Withdrawal Rate < Lower Guardrail:** Spending is increased to enjoy portfolio gains.
 
----
+### ⚰️ Stochastic Mortality
+Rather than a fixed "plan to age 95," the engine samples a death age for each path using actuarial tables. This allows for a more realistic distribution of outcomes and survivor benefit transitions.
 
-## 6. Success Rate Analysis  
-
-- Multiple simulation runs generate a distribution of outcomes.  
-- **Success = portfolio never depletes before both spouses die.**  
-
-Supports:  
-- Binary search for max safe spending (spending level that achieves 90% success rate).  
-- Guardrail optimization (search over cut/raise factors and guardrails to maximize sustainable spending).  
-- Caches used to accelerate repeated evaluations.  
+### 🔍 One-Path Audit Trace
+Run a single simulation path with a full end-of-year audit log. Review exactly when Social Security started, when a spouse passed away, and how RMDs were calculated for that specific scenario.
 
 ---
 
-## 7. Outputs & Visualizations  
+## ⚠️ Explicit Modeling Compromises
+This engine prioritizes transparency and cash-flow ordering over tax/accounting exactitude.
 
-- **Spaghetti plots:** multiple portfolio paths with median and confidence bands.  
-- **Trace tables:** detailed year-by-year cashflows, taxes, and balances.  
-- **Safe spending curve:** success probability as a function of initial spending.  
-- **Regime duration analysis:** historical persistence of inflation regimes.  
-- **Regime frequency analysis:** distribution of regimes across simulated paths.  
+* **Tax Simplifications:** Uses flat ordinary and capital gains rates rather than progressive brackets.
+* **No Specialized Tax Rules:** Does not model NIIT, IRMAA, ACA, AMT, or QBI deductions.
+* **Social Security Tax:** Modeled as a fixed taxable fraction rather than literal provisional income rules.
+* **Taxable "Tax Drag":** Rebalancing does not realize gains explicitly; instead, a leakage proxy is applied only in positive market months.
+* **RMD Accounting:** Uses current checkpoint balances rather than literal prior-year 12/31 balances.
+* **Market Model:** Based on historical bootstrap episodes; does not model forward-looking regime transitions or "Black Swan" events outside of historical parameters.
+* **Scope:** No explicit healthcare shocks, LTC events, or behavioral frictions beyond the guardrails policy.
 
 ---
 
-## 8. Assumptions & Limitations  
+## 🚦 How to Use
+1.  **Data Setup:** Ensure `ie_data.xls` (Shiller) and `mortality_table.csv` are in the project directory.
+2.  **Configure:** Set initial balances, allocations, and spending rules in the **Parameters** section.
+3.  **Simulate:** Run `run_simulation()` to generate success rates and wealth distributions.
+4.  **Audit:** Use `one_path_trace()` to verify the mechanics on a single path.
+5.  **Optimize:** Use the two-stage optimizer to identify the best guardrail configuration.
 
-- Cash return is fixed at 1%, independent of regime.  
-- Shiller data used as historical baseline for stock/bond returns.  
-- Correlations may shift by regime, but option exists to hold them constant at unconditional value.  
-- Mortality capped at age 100.  
-- No explicit modeling of healthcare shocks, annuities, or alternative assets.  
-- Tax rules (RMD age, capital gains) based on SECURE 2.0 and current IRS guidance.  
+---
