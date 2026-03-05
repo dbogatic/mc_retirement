@@ -56,9 +56,9 @@ This engine prioritizes transparency and cash-flow ordering over tax/accounting 
 
 * **Tax Simplifications:** Uses flat ordinary and capital gains rates rather than progressive brackets.
 * **No Specialized Tax Rules:** Does not model NIIT, IRMAA, ACA, AMT, or QBI deductions.
-* **Social Security Tax:** Modeled as a fixed taxable fraction rather than literal provisional income rules.
+* **Social Security Tax:** Uses IRS provisional-income rules (IRC §86) with two tiers (50 %/85 %). Provisional income is computed from pension income + 50 % of SS; RMD withdrawals are excluded to avoid double-counting since they are taxed separately in the RMD step. Thresholds are configurable parameters (`ss_pi_threshold_1/2_single/couple`) so they can be updated if Congress changes the statutory amounts.
 * **Taxable "Tax Drag":** Rebalancing does not realize gains explicitly; instead, a leakage proxy is applied only in positive market months.
-* **RMD Accounting:** Uses current checkpoint balances rather than literal prior-year 12/31 balances.
+* **RMD Accounting:** Uses the prior December 31 balance per IRS rules (IRC §401(a)(9)).
 * **Market Model:** Based on historical bootstrap episodes; does not model forward-looking regime transitions or "Black Swan" events outside of historical parameters.
 * **Scope:** No explicit healthcare shocks, LTC events, or behavioral frictions beyond the guardrails policy.
 
