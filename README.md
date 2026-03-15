@@ -51,16 +51,38 @@ Run a single simulation path with a full end-of-year audit log. Review exactly w
 
 ---
 
-## ⚠️ Explicit Modeling Compromises
-This engine prioritizes transparency and cash-flow ordering over tax/accounting exactitude.
+## ⚠️ Explicit Modeling Assumptions & Limitations
 
-* **Tax Simplifications:** Uses flat ordinary and capital gains rates rather than progressive brackets.
-* **No Specialized Tax Rules:** Does not model NIIT, IRMAA, ACA, AMT, or QBI deductions.
-* **Social Security Tax:** Modeled as a fixed taxable fraction rather than literal provisional income rules.
-* **Taxable "Tax Drag":** Rebalancing does not realize gains explicitly; instead, a leakage proxy is applied only in positive market months.
-* **RMD Accounting:** Uses current checkpoint balances rather than literal prior-year 12/31 balances.
-* **Market Model:** Based on historical bootstrap episodes; does not model forward-looking regime transitions or "Black Swan" events outside of historical parameters.
-* **Scope:** No explicit healthcare shocks, LTC events, or behavioral frictions beyond the guardrails policy.
+### Mortality
+* **Source:** SSA 2022 period life table (Trustees Report 2025).
+  URL: https://www.ssa.gov/oact/STATS/table4c6.html
+* **No mortality improvement:** The period table does not include projected longevity gains.
+* **Population:** General U.S. population, not annuitant or preferred-risk tables.
+* **Horizon:** Each path runs until the last surviving spouse's sampled death age (driven by q_x draws, not a fixed max-age parameter). A hard cap of 100 prevents runaway paths.
+* **Death timing:** SSA defines q_x as probability of dying before age x+1. Death is confirmed at end-of-year when age_eoy > sampled_trigger_age (strictly greater), consistent with this definition.
+
+### RMD Assumptions
+* **Uniform Lifetime Table** (IRS Pub 590-B, 2022 revision) used for all tax-deferred accounts.
+* **Prior Dec 31 balance** is used as the RMD divisor basis per IRS rules.
+* **Spouse >10 years younger rule** is not modeled (single-life table exception not applied).
+* SECURE 2.0 start ages: born ≤1950 → 72; 1951–1959 → 73; ≥1960 → 75.
+
+### Social Security
+* `ss_claim_amount` inputs are in **today's real dollars**. The engine inflates each benefit to its nominal value at the claim year using cumulative simulated CPI, then applies annual COLA thereafter.
+* **Taxation:** IRS Publication 915 provisional-income method is implemented (`compute_taxable_ss()`). Flat ordinary rate applied to the taxable portion. Progressive brackets, IRMAA, and QBI are not modeled.
+* **Survivor logic:**
+  - `"simplified"` mode (default): survivor receives the maximum currently-payable benefit.
+  - `"ssa_like"` mode: enforces survivor eligibility age, linear reduction from 71.5% at age 60 to full benefit at the configured eligibility age. Survivor may keep own benefit if larger. Full SSA claiming rules (GPO, WEP, spousal benefit) are not modeled.
+  - Reference: https://www.ssa.gov/pubs/EN-05-10084.pdf
+
+### Tax Model Limitations
+* Flat ordinary and capital gains rates (not progressive brackets).
+* No NIIT, IRMAA, ACA, AMT, or QBI deductions.
+* Taxable "drag" is a simplified leakage proxy applied only in positive-return months; it does not model explicit gain realization at rebalance.
+
+### Data & Market Model
+* Historical bootstrap (Shiller ie_data). Does not model regime transitions or tail events outside historical parameters.
+* Shiller loader validates expected column layout and raises a clear error if the schema changes.
 
 ---
 
